@@ -8,7 +8,7 @@ if __name__ == '__main__':
     # app = Flask(__name__)
     # app.run('0.0.0.0', 5001)
     crawler = FacebookCrawler('100072986628485', '@@q3rajMm2524857')
-    ids = open('data/user.txt', 'r').read().split('\n')
+    ids = open('data/targets.txt', 'r').read().split('\n')
     crawled = open('data/post.txt', 'r').read().split()
     while True:
         for id in ids:

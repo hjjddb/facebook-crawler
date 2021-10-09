@@ -137,7 +137,7 @@ class FacebookCrawler:
         return 
 
 
-    def export_articles(self, user_id):
-        with open(f"{user_id} articles.json", "w", encoding="utf-8") as f:
+    def export_articles(self, user_id, dir='output'):
+        with open(f"{dir}/{user_id} articles.json", "w", encoding="utf-8") as f:
             json.dump(self.articles, f, ensure_ascii=False)
 
