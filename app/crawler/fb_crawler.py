@@ -175,6 +175,9 @@ class FacebookCrawlerPool:
     def start(self):
         id = 0
         for target in self.targets:
+            if len(self.crawlers) == 0:
+                print(f'All accounts have been banned!')
+                return
             crawler = self.crawlers[id]
             while not crawler.valid:
                 print(f'Remove account {crawler.username}')
