@@ -1,0 +1,27 @@
+version: "3"
+
+volumes:
+  data:
+
+services:
+  crawler:
+    container_name: facebook-crawler
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: "python3 main.py"
+    ports:
+      - 5001:5001
+    restart: always
+
+  # db:
+  #   container_name: facebook-crawler-db
+  #   image: postgres:12
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - data:/var/lib/postgresql/data
+  #   environment:
+  #     - POSTGRES_DB=crawler
+  #     - POSTGRES_USER=dev
+  #     - POSTGRES_PASSWORD=22779688

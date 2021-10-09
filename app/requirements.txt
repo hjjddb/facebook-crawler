@@ -1,0 +1,7 @@
+vncorenlp
+flask
+beautifulsoup4
+selenium
+chromedriver-binary
+webdriver-manager
+flask_sqlalchemy
