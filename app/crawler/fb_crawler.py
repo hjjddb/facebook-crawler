@@ -8,11 +8,12 @@ import re
 import json
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from webdriver_manager import driver
 from webdriver_manager.chrome import ChromeDriverManager
 
 sys.path.append(os.getcwd())
 from utils.extractor_utils import time_extractor
-from utils.log import create_log
+# from utils.log import create_log
 from config.fb_config import BaseConfig
 from data.db import crawled_post
 
@@ -40,17 +41,16 @@ class FacebookCrawler:
 
         options = webdriver.ChromeOptions()
         driver_path = "resources/selenium_drivers/chromedriver"
-        print(driver_path)
         options.add_argument("disable-infobars")
         options.add_argument("--disable-notifications")
-        # options.add_argument('--no-sandbox')
-        # options.add_argument("--headless")
-        # options.add_argument("--disable-extensions")
-        # options.add_argument("--disable-gpu")
-        # options.add_argument("--disable-dev-shm-usage")
+        options.add_argument('--no-sandbox')
+        options.add_argument("--headless")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-dev-shm-usage")
 
-        driver = webdriver.Chrome(driver_path, options=options, desired_capabilities=desired_capabilities)
-        # driver = webdriver.Chrome(ChromeDriverManager().install(), options=options, desired_capabilities=desired_capabilities)
+        # driver = webdriver.Chrome(driver_path, options=options, desired_capabilities=desired_capabilities)
+        driver = webdriver.Chrome(ChromeDriverManager().install(), options=options, desired_capabilities=desired_capabilities)
 
         self.config = BaseConfig
 
@@ -63,11 +63,18 @@ class FacebookCrawler:
 
     
     def login(self):
-        self.driver.get("https://facebook.com/")
-        self.driver.find_element_by_name("email").send_keys(self.username)
-        self.driver.find_element_by_name("pass").send_keys(self.password)
-        self.driver.find_element_by_name("login").click()
+        try:
+            self.driver.get("https://facebook.com/")
+            self.driver.find_element_by_name("email").send_keys(self.username)
+            self.driver.find_element_by_name("pass").send_keys(self.password)
+            self.driver.find_element_by_name("login").click()
+            # print(self.driver.current_url)
+        except Exception as ex:
+            print(str(ex))
+            self.valid = False
 
+        if 'checkpoint' in self.driver.current_url:
+            self.valid = False
 
     def pass_save_device(self):
         if "save-device" in self.driver.current_url:
@@ -123,19 +130,24 @@ class FacebookCrawler:
             try:
                 content = self.driver.find_element_by_xpath('/html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[3]/div[1]/div/div/div/span').text
             except Exception as ex:
-                create_log(str(ex))
+                print(str(ex))
+                # create_log(str(ex))
             created_date = 0
             try:
                 created_date = self.driver.find_element_by_xpath('/html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[2]/div/div[2]/div/div[2]/span/span/span[2]/span/a/span/span/b').text
                 created_date = time_extractor(created_date)
             except Exception as ex:
-                create_log(str(ex))
+                print(str(ex))
+                # create_log(str(ex))
             imgs = []
             try:
                 imgs = self.driver.find_elements_by_tag_name('img')
                 imgs = [i.get_attribute('src') for i in imgs]
+                imgs = filter(lambda a: 'https' in a, imgs)
+                imgs = list(set(imgs))
             except Exception as ex:
-                create_log(str(ex))
+                print(str(ex))
+                # create_log(str(ex))
             self.articles.append({
                 'url':url,
                 'author':author,
@@ -175,17 +187,17 @@ class FacebookCrawlerPool:
     def start(self):
         id = 0
         for target in self.targets:
-            if len(self.crawlers) == 0:
-                print(f'All accounts have been banned!')
-                return
             crawler = self.crawlers[id]
-            while not crawler.valid:
+            while crawler.valid is False:
                 print(f'Remove account {crawler.username}')
                 self.crawlers.remove(crawler)
+                if len(self.crawlers) == 0:
+                    print(f'All accounts have been banned!')
+                    return
                 id %= len(self.crawlers)
                 crawler = self.crawlers[id]
-            else:
-                self.crawlers[id].get_articles(target)
-                wait(30)
-                id += 1
-                id %= len(self.crawlers)
+
+            self.crawlers[id].get_articles(target)
+
+        for crawler in self.crawlers:
+            crawler.driver.quit()
