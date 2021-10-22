@@ -1,2 +1,0 @@
-Message: no such element: Unable to locate element: {"method":"xpath","selector":"/html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[2]/div/div[2]/div/div[2]/span/span/span[2]/span/a/span/span/b"}
-  (Session info: chrome=93.0.4577.63)

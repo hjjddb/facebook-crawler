@@ -6,16 +6,20 @@ import datetime
 import random
 import re
 import json
+import logging
+import traceback
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
-from webdriver_manager import driver
 from webdriver_manager.chrome import ChromeDriverManager
 
 sys.path.append(os.getcwd())
 from utils.extractor_utils import time_extractor
 # from utils.log import create_log
 from config.fb_config import BaseConfig
-from data.db import crawled_post
+# from data.db import crawled_post
+
+
+logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)
 
 
 def wait(delta):
@@ -40,11 +44,10 @@ class FacebookCrawler:
         desired_capabilities['acceptInsecureCerts'] = True
 
         options = webdriver.ChromeOptions()
-        driver_path = "resources/selenium_drivers/chromedriver"
         options.add_argument("disable-infobars")
         options.add_argument("--disable-notifications")
         options.add_argument('--no-sandbox')
-        options.add_argument("--headless")
+        # options.add_argument("--headless")
         options.add_argument("--disable-extensions")
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-dev-shm-usage")
@@ -68,9 +71,9 @@ class FacebookCrawler:
             self.driver.find_element_by_name("email").send_keys(self.username)
             self.driver.find_element_by_name("pass").send_keys(self.password)
             self.driver.find_element_by_name("login").click()
-            # print(self.driver.current_url)
         except Exception as ex:
-            print(str(ex))
+            logging.error(f'{datetime.datetime.now}: {str(traceback.format_exc())}')
+            print(traceback.format_exc())
             self.valid = False
 
         if 'checkpoint' in self.driver.current_url:
@@ -82,6 +85,7 @@ class FacebookCrawler:
 
 
     def get_articles(self, user_id):
+        logging.info(f'{self.username} is crawling user {user_id}...')
         print(f'{self.username} is crawling user {user_id}...')
         wait(2)
         if 'https' in user_id:
@@ -103,7 +107,7 @@ class FacebookCrawler:
             #                                         /html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div[4]/div[2]/div/div[2]/div[2]/div[1]/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[2]/div/div[2]/div/div[2]/span/span/span[2]/span/a
             #                                         /html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div[4]/div[2]/div/div[2]/div[3]/div[1]/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[2]/div/div[2]/div/div[2]/span/span/span[2]/span/a
                 except:
-                    pass
+                    logging.error(f'{datetime.datetime.now}: {str(traceback.format_exc())}')
             if url in crawled_post:
                 break
             try:
@@ -111,9 +115,7 @@ class FacebookCrawler:
                 action.move_to_element(url).key_down(Keys.CONTROL).click().perform()
                 wait(2)
             except AttributeError:
-                print(f'Account {self.username} has been blocked!')
-                with open('log.txt', 'w') as f:
-                    f.write(f'{str(datetime.datetime.utcnow())}: Account {self.username} has been blocked!\n')
+                logging.error(f'{datetime.datetime.now}: {str(traceback.format_exc())}')
                 self.valid = False
                 return
         initial_window = self.driver.window_handles[0]
@@ -122,6 +124,7 @@ class FacebookCrawler:
             url = str(self.driver.current_url)
             if 'posts' not in url and 'watch' not in url:
                 continue
+            logging.info(f'\t{datetime.datetime.now}: Crawling post {url}...')
             print(f'\tCrawling post {url}...')
             wait(self.config.POST_PAUSE_TIME)
 
@@ -130,6 +133,7 @@ class FacebookCrawler:
             try:
                 content = self.driver.find_element_by_xpath('/html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[3]/div[1]/div/div/div/span').text
             except Exception as ex:
+                logging.error(f'{datetime.datetime.now}: {str(traceback.format_exc())}')
                 print(str(ex))
                 # create_log(str(ex))
             created_date = 0
@@ -137,6 +141,7 @@ class FacebookCrawler:
                 created_date = self.driver.find_element_by_xpath('/html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[2]/div/div[2]/div/div[2]/span/span/span[2]/span/a/span/span/b').text
                 created_date = time_extractor(created_date)
             except Exception as ex:
+                logging.error(f'{datetime.datetime.now}: {str(traceback.format_exc())}')
                 print(str(ex))
                 # create_log(str(ex))
             imgs = []
@@ -146,6 +151,7 @@ class FacebookCrawler:
                 imgs = filter(lambda a: 'https' in a, imgs)
                 imgs = list(set(imgs))
             except Exception as ex:
+                logging.error(f'{datetime.datetime.now}: {str(traceback.format_exc())}')
                 print(str(ex))
                 # create_log(str(ex))
             self.articles.append({
@@ -165,6 +171,7 @@ class FacebookCrawler:
     def export_articles(self, user_id, dir='output'):
         with open(f"{dir}/{user_id}.json", "w", encoding="utf-8") as f:
             json.dump(self.articles, f, ensure_ascii=False)
+            self.articles.clear()
 
 
 class FacebookCrawlerPool:
@@ -188,14 +195,14 @@ class FacebookCrawlerPool:
         id = 0
         for target in self.targets:
             crawler = self.crawlers[id]
-            while crawler.valid is False:
-                print(f'Remove account {crawler.username}')
-                self.crawlers.remove(crawler)
-                if len(self.crawlers) == 0:
-                    print(f'All accounts have been banned!')
-                    return
-                id %= len(self.crawlers)
-                crawler = self.crawlers[id]
+            # while crawler.valid is False:
+            #     print(f'Remove account {crawler.username}')
+            #     self.crawlers.remove(crawler)
+            #     if len(self.crawlers) == 0:
+            #         print(f'All accounts have been banned!')
+            #         return
+            #     id %= len(self.crawlers)
+            #     crawler = self.crawlers[id]
 
             self.crawlers[id].get_articles(target)
 
