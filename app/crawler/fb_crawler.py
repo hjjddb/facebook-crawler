@@ -91,25 +91,27 @@ class FacebookCrawler:
         if 'https' in user_id:
             self.driver.get(user_id)
         self.driver.get(f"https://facebook.com/{user_id}")
-        self.config.SCROLL_PAUSE_TIME = 0.5
+        
         for _ in range(5):
             self.driver.execute_script(f"window.scrollTo(0, {(_+1)*540});")
             time.sleep(self.config.SCROLL_PAUSE_TIME)
-
         wait(5)
+
         for i in range(1, self.config.NUM_POSTS):
             url = ''
-            try:
-                url = self.driver.find_element_by_xpath(f'/html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div[4]/div[2]/div/div[2]/div[3]/div[{i}]/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[2]/div/div[2]/div/div[2]/span/span/span[2]/span/a')
-            except Exception as ex:
+            found_element = False
+            for xp in BaseConfig.POST_URL_XPATHS:
                 try:
-                    url = self.driver.find_element_by_xpath(f'/html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div[4]/div[2]/div/div[2]/div[2]/div[{i}]/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[2]/div/div[2]/div/div[2]/span/span/span[2]/span/a')
-            #                                         /html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div[4]/div[2]/div/div[2]/div[2]/div[1]/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[2]/div/div[2]/div/div[2]/span/span/span[2]/span/a
-            #                                         /html/body/div[1]/div/div[1]/div/div[3]/div/div/div[1]/div[1]/div/div/div[4]/div[2]/div/div[2]/div[3]/div[1]/div/div/div/div/div/div/div/div/div/div/div[2]/div/div[2]/div/div[2]/div/div[2]/span/span/span[2]/span/a
-                except:
+                    url = self.driver.find_element_by_xpath(xp.format(i))
+                    found_element = True
+                except Exception as ex:
                     logging.error(f'{datetime.datetime.now}: {str(traceback.format_exc())}')
-            if url in crawled_post:
-                break
+            # if url in crawled_post:
+            #     break
+            if not found_element:
+                with open('output/not_crawled.txt', 'a') as f:
+                    f.write(f'{user_id}\n')
+
             try:
                 action = webdriver.ActionChains(self.driver)
                 action.move_to_element(url).key_down(Keys.CONTROL).click().perform()
